@@ -17,6 +17,7 @@ P: git push -u origin current_branch_name
 d: git diff && git diff --staged
 s: git status -s
 l: git latest (not native)
+L: git log --oneline HEAD...origin/another-branch
 c: git commit (requires the message as the second arg)
 *: git *
 ```
