@@ -49,7 +49,8 @@ case ${cmd} in
       git checkout master
       git pull
     else
-      echo "⚠️ You're already in master"
+      echo "⚠️ You're already in master; just pulling"
+      git pull
     fi
     ;;
 
