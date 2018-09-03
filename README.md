@@ -33,3 +33,9 @@ I use "git latest", as `git for-each-ref --sort='-committerdate' --format='%(ref
 ## Customization
 
 I have left in the script a small commit automation I use. It might be useful to anyone having to prefix each one of their commit with a specific value (in my case is the ID of the Jira ticket).
+
+## Todo
+
+- Better test for existance of a remote branch when `g g`
+- Do not switch branches if the repo is dirty
+

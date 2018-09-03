@@ -120,6 +120,7 @@ case ${cmd} in
       else
         read -r -n 1 -p "❓ Do you want to create the branch \"${branch_name}\" (y/N)? "
         if [[ "${REPLY}" == "y" ]]; then
+          echo
           git checkout -b ${branch_name}
         fi
       fi
