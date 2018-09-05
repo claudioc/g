@@ -27,14 +27,14 @@ EOT
 
 assert_no_params () {
   if [[ ${argc} -ne 1 ]]; then
-    echo "🚫 This command doesn't want a parameter
-    "
+    echo "🚫 This command doesn't want a parameter"
     ghelp
   fi
 }
 
 assert_one_param () {
   if [[ ${argc} -ne 2 ]]; then
+    echo "🚫 This command needs a parameter"
     ghelp
   fi
 }
@@ -42,11 +42,10 @@ assert_one_param () {
 assert_not_dirty () {
   local git_dirty=$(git diff-index --name-only HEAD --)
 
-  if [[ "${git_dirty}" != "" ]]; then
+  if [[ -n "${git_dirty}" ]]; then
     echo '🚫 This command cannot run on a dirty index (use "g s" to see what is changed)'
     exit 1
   fi
-
 }
 
 argc=${#}
@@ -136,7 +135,7 @@ case ${cmd} in
     assert_one_param
     assert_not_dirty
     branch_name=${2}
-    if [[ ${git_branch} == "${branch_name}" ]]; then
+    if [[ "${git_branch}" == "${branch_name}" ]]; then
       echo "🤔 You already are in ${branch_name}"
     else
       if [[ -n $(git rev-parse --verify --quiet ${branch_name}) ]]; then
@@ -155,14 +154,14 @@ case ${cmd} in
   G)
     assert_not_dirty
     branch_name=${2-''}
-    if [[ "${branch_name}" == "" ]]; then
-      branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads | head -n 15 | sed -e 's-refs/heads/--')
+    if [[ -z ${branch_name} ]]; then
+      branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads --count 15 | sed -e 's-refs/heads/--')
     else
-      branches=$(git branch -a --list "*${branch_name}*" | sed 's/remotes\/origin\///' | uniq)
+      branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads refs/remotes | sed 's/refs\/remotes\/origin\///' | sed 's/refs\/heads\///' | uniq)
     fi
 
     if [[ "${branches}" == "" ]]; then
-      echo "🔍  No branches found"
+      echo "🔍 No branches found"
       exit 0
     fi
 
