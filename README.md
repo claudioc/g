@@ -9,13 +9,13 @@
 (also available as `g h`)
 
 ```
-c \$1: git commit \$1
+c $1: git commit $1
 d: git diff && git diff --staged
-g \$1: git checkout a local branch (or ask to create it) \$1
-G [\$1]: Interactively change branch (matching *\$1*)
+g $1: git checkout a local branch (or ask to create it) $1
+G [$1]: Interactively change branch (matching *$1*)
 m: checkouts master && pulls
 l: Shows most recent branch activities
-L \$1: Git difference between HEAD and another branch
+L $1: Git difference between HEAD and another branch
 p: git pull
 P: git push -u origin current_branch_name
 s: git status -s
