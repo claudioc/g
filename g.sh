@@ -10,18 +10,19 @@ type git >/dev/null 2>&1 || { echo >&2 "😟 I can't find the git executable."; 
 
 ghelp () {
   cat <<EOT
+c \$1: git commit \$1
+d: git diff && git diff --staged
+g \$1: git checkout a local branch (or ask to create it) \$1
+G [\$1]: Interactively change branch (matching *\$1*)
 m: checkouts master && pulls
+l: Shows most recent branch activities
+L \$1: Git difference between HEAD and another branch
 p: git pull
 P: git push -u origin current_branch_name
-d: git diff && git diff --staged
-s: git status
-l: git latest (not native)
-L \$1: git log --oneline HEAD...origin/\$1
-c \$1: git commit \$1
-g \$1: git checkout \$1
+s: git status -s
 *: git *
 EOT
-exit 0
+  exit 0
 }
 
 assert_no_params () {
@@ -38,6 +39,16 @@ assert_one_param () {
   fi
 }
 
+assert_not_dirty () {
+  local git_dirty=$(git diff-index --name-only HEAD --)
+
+  if [[ "${git_dirty}" != "" ]]; then
+    echo '🚫 This command cannot run on a dirty index (use "g s" to see what is changed)'
+    exit 1
+  fi
+
+}
+
 argc=${#}
 if [[ ${argc} -eq 0 ]]; then
   ghelp
@@ -45,7 +56,7 @@ fi
 
 cmd=${1}
 
-if [[ -z "$(git rev-parse --git-dir 2>/dev/null)" ]]; then
+if [[ -z "$(git rev-parse --git-dir 2> /dev/null)" ]]; then
   echo "😊 I work better when run from inside a git repository."
   exit 1
 fi
@@ -57,6 +68,7 @@ case ${cmd} in
     ghelp
     ;;
 
+  # Checking out master
   m)
     assert_no_params
     if [[ ${git_branch} != "master" ]]; then
@@ -68,35 +80,44 @@ case ${cmd} in
     fi
     ;;
 
+  # Git pull
   p)
     assert_no_params
     git pull
     ;;
 
+  # Git push
   P)
     assert_no_params
     git push -u origin ${git_branch}
     ;;
 
+  # Git diff
   d)
     assert_no_params
     git diff
     git diff --staged
     ;;
 
+  # Git status
   s)
     assert_no_params
     git status -s
     ;;
 
+  # Git 'latest'
   l)
     assert_no_params
-    git latest
+    git for-each-ref --sort='-committerdate' --format='%(refname)%09%(committerdate)' refs/heads | head -n 15 | sed -e 's-refs/heads/--'
     ;;
+
+  # Git difference between HEAD and another branch
   L)
     assert_one_param
     git log --oneline HEAD...origin/${2}
     ;;
+
+  # Git 'smart' commit
   c)
     assert_one_param
     # Extracts the jira id from a branch name in the form:
@@ -109,8 +130,11 @@ case ${cmd} in
     fi
     git commit -m "[${branch_id}] ${2}"
     ;;
+
+  # Git checkout a local branch (or creates it)
   g)
     assert_one_param
+    assert_not_dirty
     branch_name=${2}
     if [[ ${git_branch} == "${branch_name}" ]]; then
       echo "🤔 You already are in ${branch_name}"
@@ -126,6 +150,33 @@ case ${cmd} in
       fi
     fi
     ;;
+
+  # Interactively change branch matching $1
+  G)
+    assert_not_dirty
+    branch_name=${2-''}
+    if [[ "${branch_name}" == "" ]]; then
+      branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads | head -n 15 | sed -e 's-refs/heads/--')
+    else
+      branches=$(git branch -a --list "*${branch_name}*" | sed 's/remotes\/origin\///' | uniq)
+    fi
+
+    if [[ "${branches}" == "" ]]; then
+      echo "🔍  No branches found"
+      exit 0
+    fi
+
+    PS3="Select a branch (or ^C): "
+    declare -a branches=(${branches})
+    select opt in "${branches[@]}"; do
+      if [[ "${opt}" != "" ]]; then
+        git checkout ${opt}
+      fi
+      break
+    done
+    ;;
+
+  # Pass-through any command to git
   *)
     git ${*}
     ;;
