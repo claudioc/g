@@ -154,14 +154,15 @@ case ${cmd} in
   G)
     assert_not_dirty
     branch_name=${2-''}
+
     if [[ -z ${branch_name} ]]; then
       branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads --count 15 | sed -e 's-refs/heads/--')
     else
-      branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads refs/remotes | grep ${branch_name} | sed 's/refs\/remotes\/origin\///' | sed 's/refs\/heads\///' | uniq)
+      branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads refs/remotes | grep "${branch_name}" | sed 's/refs\/remotes\/origin\///' | sed 's/refs\/heads\///' | uniq || true)
     fi
 
-    if [[ "${branches}" == "" ]]; then
-      echo "🔍 No branches found"
+    if [[ -z "${branches}" ]]; then
+      echo "🔍 No branches found matching '${branch_name}'"
       exit 0
     fi
 
