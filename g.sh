@@ -157,7 +157,7 @@ case ${cmd} in
     if [[ -z ${branch_name} ]]; then
       branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads --count 15 | sed -e 's-refs/heads/--')
     else
-      branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads refs/remotes | sed 's/refs\/remotes\/origin\///' | sed 's/refs\/heads\///' | uniq)
+      branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads refs/remotes | grep ${branch_name} | sed 's/refs\/remotes\/origin\///' | sed 's/refs\/heads\///' | uniq)
     fi
 
     if [[ "${branches}" == "" ]]; then
