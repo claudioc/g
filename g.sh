@@ -1,15 +1,32 @@
 #!/usr/bin/env bash
+
 # Simple shortcut wrapper to your most common git commands
 # Easy to extend, and passes all the unrecognized command through the
 # `git` command itself (i.e. `g rebase master` => `git rebase master`)
+#
+# MIT License
+# Copyright (c) 2018 Claudio Cicali <claudio.cicali@gmail.com>
+# Version 1.1
 
 # Traps any error (see https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
 set -e -o pipefail -u
 
 type git >/dev/null 2>&1 || { echo >&2 "😟 I can't find the git executable."; exit 1; }
 
+G_C_TICKET_REGEXP=${G_C_TICKET_REGEXP:-[A-Z]+-[0-9]+}
+# What to use in case a ticket number is not found in the branch name
+# Defaults to 'NOJIRA'
+G_C_DEFAULT_TICKET=${G_C_DEFAULT_TICKET:-NOJIRA}
+# Wether the commit command must find the ticket number in the branch before proceeding (or bail)
+# Accepts "1" or "0", defaults to "0" (no need for the ticket and will use G_C_DEFAULT_TICKET)
+G_C_NEEDS_TICKET=${G_C_NEEDS_TICKET:-0}
+# Probably not everybody wants a "smart commit", and a quick alias to `git commit -m` would be enough
+G_C_IS_SMART=${G_C_IS_SMART:-1}
+G_REMOTE=${G_REMOTE:-origin}
+
 ghelp () {
   cat <<EOT
+a: git add -u
 c \$1: git commit \$1
 d: git diff && git diff --staged
 g \$1: git checkout a local branch (or ask to create it) \$1
@@ -18,7 +35,7 @@ m: checkouts master && pulls
 l: Shows most recent branch activities
 L \$1: Git difference between HEAD and another branch
 p: git pull
-P: git push -u origin current_branch_name
+P: git push -u ${G_REMOTE} current_branch_name
 s: git status -s
 *: git *
 EOT
@@ -63,6 +80,17 @@ fi
 git_branch=$(git symbolic-ref HEAD | sed 's/refs\/heads\///')
 
 case ${cmd} in
+  # Git add -u
+  a)
+    assert_no_params
+    git add -u
+    # Check if we have untracked changes too
+    untracked=$(git status -u -s)
+    if [[ -n "${untracked}" ]]; then
+      echo "⚠️  Done, but you also have untracked changes (use \`g s\` to see them)."
+    fi
+    ;;
+
   h)
     ghelp
     ;;
@@ -74,7 +102,7 @@ case ${cmd} in
       git checkout master
       git pull
     else
-      echo "⚠️ You already are in master; just pulling"
+      echo "⚠️  You already are in master; just pulling"
       git pull
     fi
     ;;
@@ -88,10 +116,10 @@ case ${cmd} in
   # Git push
   P)
     assert_no_params
-    git push -u origin ${git_branch}
+    git push -u ${G_REMOTE} ${git_branch}
     ;;
 
-  # Git diff
+  # Git diff (warning: it also looks into already staged files)
   d)
     assert_no_params
     git diff
@@ -104,7 +132,7 @@ case ${cmd} in
     git status -s
     ;;
 
-  # Git 'latest'
+  # Git 'latest': shows the most recent branches you've worked in
   l)
     assert_no_params
     git for-each-ref --sort='-committerdate' --format='%(refname)%09%(committerdate)' refs/heads | head -n 15 | sed -e 's-refs/heads/--'
@@ -113,21 +141,34 @@ case ${cmd} in
   # Git difference between HEAD and another branch
   L)
     assert_one_param
-    git log --oneline HEAD...origin/${2}
+    git log --oneline HEAD...${G_REMOTE}/${2}
     ;;
 
   # Git 'smart' commit
   c)
     assert_one_param
-    # Extracts the jira id from a branch name in the form:
-    # 'claudioc/IT-123_something_something'
-    REGEXP="\/(.+)\_"
-    branch_id='NOJIRA'
-    if [[ ${git_branch} =~ ${REGEXP} ]]; then
-      # Bash doesn't support non-greedy RE, so we need to remove the final part of the match
-      branch_id=${BASH_REMATCH[1]//_*}
+    if [[ "${G_C_IS_SMART}" != "1" ]]; then
+      git commit -m "[${branch_id}] ${2}"
+    else
+      # Extracts and use a ticket id from a branch name in one of these forms:
+      # 'claudioc/IT-123_something_something'
+      # 'IT-123_something_something'
+      # 'something_something_IT-123'
+      # 'something_something' (produces 'NOJIRA')
+      # It will fail with 'something_something_ANDMOREIT-123'
+      regexp="(${G_C_TICKET_REGEXP})"
+      branch_id=${G_C_DEFAULT_TICKET}
+      if [[ ${git_branch} =~ ${regexp} ]]; then
+        # Bash doesn't support non-greedy RE, so we need to remove the final part of the match
+        branch_id=${BASH_REMATCH[1]//_*}
+      else
+        if [[ "${G_C_NEEDS_TICKET}" != "0" ]]; then
+          echo "🔍 A ticket number was not found analyzing the branch name."
+          exit 1
+        fi
+      fi
+      git commit -m "[${branch_id}] ${2}"
     fi
-    git commit -m "[${branch_id}] ${2}"
     ;;
 
   # Git checkout a local branch (or creates it)
@@ -150,7 +191,7 @@ case ${cmd} in
     fi
     ;;
 
-  # Interactively change branch matching $1
+  # Interactively changes branch matching $1
   G)
     assert_not_dirty
     branch_name=${2-''}
@@ -158,7 +199,7 @@ case ${cmd} in
     if [[ -z ${branch_name} ]]; then
       branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads --count 15 | sed -e 's-refs/heads/--')
     else
-      branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads refs/remotes | grep "${branch_name}" | sed 's/refs\/remotes\/origin\///' | sed 's/refs\/heads\///' | uniq || true)
+      branches=$(git for-each-ref --sort='-committerdate' --format='%(refname)' refs/heads refs/remotes | grep "${branch_name}" | sed "s/refs\/remotes\/${G_REMOTE}\///" | sed 's/refs\/heads\///' | uniq || true)
     fi
 
     if [[ -z "${branches}" ]]; then
