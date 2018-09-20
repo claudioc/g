@@ -148,7 +148,7 @@ case ${cmd} in
   c)
     assert_one_param
     if [[ "${G_C_IS_SMART}" != "1" ]]; then
-      git commit -m "[${branch_id}] ${2}"
+      git commit -m "${2}"
     else
       # Extracts and use a ticket id from a branch name in one of these forms:
       # 'claudioc/IT-123_something_something'
