@@ -26,18 +26,18 @@ G_REMOTE=${G_REMOTE:-origin}
 
 ghelp () {
   cat <<EOT
-a: git add -u
-c \$1: git commit \$1
-d: git diff && git diff --staged
-g \$1: git checkout a local branch (or ask to create it) \$1
-G [\$1]: Interactively change branch (matching *\$1*)
-m: checkouts master && pulls
-l: Shows most recent branch activities
-L \$1: Git difference between HEAD and another branch
-p: git pull
-P: git push -u ${G_REMOTE} current_branch_name
-s: git status -s
-*: git *
+a    : git add -u
+c \$1: git commit -m \$1, with ticket number detection
+d    : git diff + git diff --staged
+g \$1: git checkout a local branch (or ask to create it)
+G \$1: Interactively change branch (matching *\$1* when passed)
+m    : checkouts the master branch and pulls
+l    : Shows the most recent branch activities
+L \$1: Shows the differences between HEAD and another branch
+p    : git pull
+P    : git push -u ${G_REMOTE} current_branch_name
+s    : git status -s
+*    : git *
 EOT
   exit 0
 }
