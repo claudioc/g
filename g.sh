@@ -85,9 +85,9 @@ case ${cmd} in
     assert_no_params
     git add -u
     # Check if we have untracked changes too
-    untracked=$(git status -u -s)
+    untracked=$(git ls-files --others --exclude-standard)
     if [[ -n "${untracked}" ]]; then
-      echo "⚠️  Done, but you also have untracked changes (use \`g s\` to see them)."
+      echo "⚠️  Done, but you may have untracked files to add too (use \`g s\` to see them)."
     fi
     ;;
 
