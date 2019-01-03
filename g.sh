@@ -11,7 +11,7 @@
 # Traps any error (see https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
 set -e -o pipefail -u
 
-type git >/dev/null 2>&1 || { echo >&2 "😟 I can't find the git executable."; exit 1; }
+type git >/dev/null 2>&1 || { echo >&2 "😟  I can't find the git executable."; exit 1; }
 
 G_C_TICKET_REGEXP=${G_C_TICKET_REGEXP:-[A-Z]+-[0-9]+}
 # What to use in case a ticket number is not found in the branch name
@@ -44,14 +44,14 @@ EOT
 
 assert_no_params () {
   if [[ ${argc} -ne 1 ]]; then
-    echo "🚫 This command doesn't want a parameter"
+    echo "🚫  This command doesn't want a parameter"
     ghelp
   fi
 }
 
 assert_one_param () {
   if [[ ${argc} -ne 2 ]]; then
-    echo "🚫 This command needs a parameter"
+    echo "🚫  This command needs a parameter"
     ghelp
   fi
 }
@@ -60,7 +60,7 @@ assert_not_dirty () {
   local git_dirty=$(git diff-index --name-only HEAD --)
 
   if [[ -n "${git_dirty}" ]]; then
-    echo '🚫 This command cannot run on a dirty index (use "g s" to see what is changed)'
+    echo '🚫  This command cannot run on a dirty index (use "g s" to see what is changed)'
     exit 1
   fi
 }
@@ -73,11 +73,16 @@ fi
 cmd=${1}
 
 if [[ -z "$(git rev-parse --git-dir 2> /dev/null)" ]]; then
-  echo "😊 I work better when run from inside a git repository."
+  echo "😊  I work better when run from inside a git repository."
   exit 1
 fi
 
-git_branch=$(git symbolic-ref HEAD | sed 's/refs\/heads\///')
+{
+  git_branch=$(git symbolic-ref HEAD | sed 's/refs\/heads\///')
+} || {
+  echo "😬  Sorry, operation not supported when in detached state."
+  exit 1
+}
 
 case ${cmd} in
   # Git add -u
@@ -177,7 +182,7 @@ case ${cmd} in
     assert_not_dirty
     branch_name=${2}
     if [[ "${git_branch}" == "${branch_name}" ]]; then
-      echo "🤔 You already are in ${branch_name}"
+      echo "🤔  You already are in ${branch_name}"
     else
       if [[ -n $(git rev-parse --verify --quiet ${branch_name}) ]]; then
         git checkout ${2}
@@ -203,7 +208,7 @@ case ${cmd} in
     fi
 
     if [[ -z "${branches}" ]]; then
-      echo "🔍 No branches found matching '${branch_name}'"
+      echo "🔍  No branches found matching '${branch_name}'"
       exit 0
     fi
 
