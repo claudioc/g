@@ -28,7 +28,7 @@ argc=${#}
 
 main() {
   validate_environment
-  execute_command ${1} ${2-} ${3-}
+  execute_command "${@}"
 }
 
 ghelp () {
@@ -59,7 +59,7 @@ assert_no_params () {
 
 assert_one_param () {
   if [[ ${argc} -ne 2 ]]; then
-    echo "🚫  This command needs a parameter"
+    echo "🚫  This command needs one and one only parameter"
     ghelp
   fi
 }
@@ -102,17 +102,20 @@ execute_command() {
   case ${1} in
     a) # Git add -u
       assert_one_or_zero_params
-      command_a ${2-}
+      shift
+      command_a "${@-}"
       ;;
 
     A) # Git add
       assert_one_param
-      command_A ${2}
+      shift
+      command_A "${@}"
       ;;
 
     c) # Git 'smart' commit
       assert_one_param
-      command_c ${2}
+      shift
+      command_c "${@}"
       ;;
 
     # Git diff (warning: it also looks into already staged files)
@@ -125,7 +128,8 @@ execute_command() {
     # (L is maintained for backward compatibility)
     D|L)
       assert_one_param
-      command_D ${2}
+      shift
+      command_D "${@}"
       ;;
 
     h)
@@ -135,7 +139,8 @@ execute_command() {
     # Git checkout a local branch (or creates it)
     g)
       assert_one_or_zero_params
-      command_g ${2-}
+      shift
+      command_g "${@-}"
       ;;
 
     # Interactively changes branch matching $1
@@ -184,12 +189,12 @@ command_a() {
   fi
 
   if [[ "${1-}" != "" ]]; then
-    command_c ${1}
+    command_c "${1}"
   fi
 }
 
 command_A() {
-  git add ${1}
+  git add "${1}"
 }
 
 command_c() {
@@ -299,4 +304,4 @@ command_s() {
   git status -s
 }
 
-main ${1} ${2-} ${3-}
+main "${@}"
