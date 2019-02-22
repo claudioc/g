@@ -9,11 +9,12 @@
 (also available as `g h`)
 
 ```
-a   : (add)    git add -u
+a   : (add)    git add -u (with a second parameter also commits)
+A $1: git add $1
 c $1: (commit) git commit -m $1, with ticket number detection
 d   : (diff)   git diff + git diff --staged
 D $1: (diff between branches) Shows the differences between HEAD and another branch
-g $1: (go)     git checkout a (new or old) local branch or shows the local activities
+g $1: (go)     git checkout a (old or new) local branch or shows the local activities
 G $1: (interactive go) Interactively change branch (matching *$1* when passed)
 h   : help
 m   : (master) checkouts the master branch and pulls
