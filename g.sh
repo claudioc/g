@@ -304,4 +304,4 @@ command_s() {
   git status -s
 }
 
-main "${@}"
+main "${@-}"
