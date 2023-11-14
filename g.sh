@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-# Simple shortcut wrapper to your most common git commands
+# This is a simple shortcut wrapper to your most common git commands
 # Easy to extend, and passes all the unrecognized command through the
-# `git` command itself (i.e. `g rebase master` => `git rebase master`)
+# `git` command itself (i.e. `g rebase main` => `git rebase main`)
 #
 # MIT License
-# Copyright (c) 2018 Claudio Cicali <claudio.cicali@gmail.com>
+# Copyright (c) 2023 Claudio Cicali <claudio.cicali@gmail.com>
 # Version 1.1
 
 # Traps any error (see https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
@@ -13,7 +13,7 @@ set -e -o pipefail -u
 
 type git >/dev/null 2>&1 || { echo >&2 "😟  I can't find the git executable."; exit 1; }
 
-G_C_TICKET_REGEXP=${G_C_TICKET_REGEXP:-[A-Z]+-[0-9]+}
+G_C_TICKET_REGEXP=${G_C_TICKET_REGEXP:-[a-z]+-[0-9]+}
 # What to use in case a ticket number is not found in the branch name
 # Defaults to ''
 G_C_DEFAULT_TICKET=${G_C_DEFAULT_TICKET:-}
@@ -22,6 +22,7 @@ G_C_DEFAULT_TICKET=${G_C_DEFAULT_TICKET:-}
 G_C_NEEDS_TICKET=${G_C_NEEDS_TICKET:-0}
 # Probably not everybody wants a "smart commit", and a quick alias to `git commit -m` would be enough
 G_C_IS_SMART=${G_C_IS_SMART:-1}
+G_C_DEFAULT_BRANCH=${G_C_DEFAULT_BRANCH:-main}
 G_REMOTE=${G_REMOTE:-origin}
 
 argc=${#}
@@ -35,16 +36,19 @@ ghelp () {
   cat <<EOT
 a    : git add -u (with a second parameter also commits)
 A \$1: git add \$1
+b \$1: Smart 'branch'. Creates a branch from a description
 c \$1: git commit -m \$1, with ticket number detection
 d    : git diff + git diff --staged
 D \$1: Shows the differences between HEAD and another branch
 g \$1: git checkout a (old or new) local branch, or show the most recent activities
 G \$1: Interactively change branch (matching *\$1* when passed)
 h    : This help
-m    : checkouts the master branch and pulls
+i    : inspect the configuration options
+m    : checkouts the ${G_C_DEFAULT_BRANCH} branch and pulls
 p    : git pull
 P    : git push -u ${G_REMOTE} current_branch_name
 s    : git status -s
+t    : Shows the ticket number extracted from the branch name
 *    : git *
 EOT
   exit 0
@@ -112,21 +116,24 @@ execute_command() {
       command_A "${@}"
       ;;
 
+    b) # Git 'smart' branch
+      assert_one_param
+      shift
+      command_b "${@}"
+      ;;
+
     c) # Git 'smart' commit
       assert_one_param
       shift
       command_c "${@}"
       ;;
 
-    # Git diff (warning: it also looks into already staged files)
-    d)
+    d) # Git diff (warning: it also looks into already staged files)
       assert_no_params
       command_d
       ;;
 
-    # Git difference between HEAD and another branch
-    # (L is maintained for backward compatibility)
-    D|L)
+    D) # Git difference between HEAD and another branch
       assert_one_param
       shift
       command_D "${@}"
@@ -136,45 +143,48 @@ execute_command() {
       ghelp
       ;;
 
-    # Git checkout a local branch (or creates it)
-    g)
+    i) # Inspect configuration
+      assert_no_params
+      command_i
+      ;;
+
+    g) # Git checkout a local branch (or creates it)
       assert_one_or_zero_params
       shift
       command_g "${@-}"
       ;;
 
-    # Interactively changes branch matching $1
-    G)
+    G) # Interactively changes branch matching $1
       assert_no_params
       command_G
       ;;
 
-    # Checking out master
-    m)
+    m) # Checking out G_C_DEFAULT_BRANCH
       assert_no_params
       command_m
       ;;
 
-    # Git pull
-    p)
+    p) # Git pull
       assert_no_params
       command_p
       ;;
 
-    # Git push
-    P)
+    P) # Git push
       assert_no_params
       command_P
       ;;
 
-    # Git status
-    s)
+    s) # Git status
       assert_no_params
       command_s
       ;;
 
-    # Pass-through any command to git
-    *)
+    t) # Shows the ticket number extracted from the branch name
+      assert_no_params
+      command_t
+      ;;
+
+    *) # Pass-through any command to git
       git ${*}
       ;;
   esac
@@ -195,6 +205,30 @@ command_a() {
 
 command_A() {
   git add "${1}"
+}
+
+command_b() {
+  # assert_not_dirty
+  branch_name=${1}
+  # slugify the branch name
+  branch_name=$(echo "${branch_name}" | sed -e 's/[^[:alnum:]|//]/-/g' | tr -s '-' | tr A-Z a-z)
+  # remove multiple -
+  branch_name=$(echo "${branch_name}" | tr -s '-')
+  # remove leading and trailing -
+  branch_name=${branch_name#-}
+  branch_name=${branch_name%-}
+  # cut the branch name to the maximum length
+  branch_name=${branch_name:0:50}
+
+  echo "🔀 Creating branch ${branch_name}"
+  # Create the branch if it doesn't exist
+  if [[ -z $(git rev-parse --verify --quiet ${branch_name}) ]]; then
+    git checkout -b ${branch_name}
+  else
+    echo "🤔 Branch ${branch_name} already exists"
+    # Switch to the branch
+    git checkout ${branch_name}
+  fi
 }
 
 command_c() {
@@ -282,12 +316,16 @@ command_G() {
   done
 }
 
+command_i() {
+  inspect_configuration
+}
+
 command_m() {
-  if [[ ${git_branch} != "master" ]]; then
-    git checkout master
+  if [[ ${git_branch} != "${G_C_DEFAULT_BRANCH}" ]]; then
+    git checkout ${G_C_DEFAULT_BRANCH}
     git pull
   else
-    echo "⚠️  You already are in master; just pulling"
+    echo "⚠️  You already are in ${G_C_DEFAULT_BRANCH}; just pulling"
     git pull
   fi
 }
@@ -303,5 +341,26 @@ command_P() {
 command_s() {
   git status -s
 }
+
+command_t() {
+  regexp="(${G_C_TICKET_REGEXP})"
+  branch_id=${G_C_DEFAULT_TICKET}
+  if [[ ${git_branch} =~ ${regexp} ]]; then
+    # Bash doesn't support non-greedy RE, so we need to remove the final part of the match
+    branch_id=${BASH_REMATCH[1]//_*}
+  fi
+  echo "${branch_id}"
+}
+
+# Echoes all the configuration options
+inspect_configuration() {
+  echo "G_C_TICKET_REGEXP=${G_C_TICKET_REGEXP}"
+  echo "G_C_DEFAULT_TICKET=${G_C_DEFAULT_TICKET}"
+  echo "G_C_NEEDS_TICKET=${G_C_NEEDS_TICKET}"
+  echo "G_C_IS_SMART=${G_C_IS_SMART}"
+  echo "G_C_DEFAULT_BRANCH=${G_C_DEFAULT_BRANCH}"
+  echo "G_REMOTE=${G_REMOTE}"
+}
+
 
 main "${@-}"
